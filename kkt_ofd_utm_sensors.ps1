@@ -154,11 +154,20 @@ try
 
 	$build_info	= $web_client.DownloadString($utm_url)
 	$jsonArray	= ConvertFrom-Json20 $build_info
-#	Фамилия
+
+#	Фамилия ---
 	$GOSTsurname	= $jsonArray."surname"
 #	UTF8 -> Win-1252
 	$GOSTsurname	= [System.Text.Encoding]::Default.GetBytes($GOSTsurname)
 	$GOSTsurname	= [System.Text.Encoding]::UTF8.GetString($GOSTsurname)
+
+#	Имя Отчество ---
+	$GOSTgivenname	= $jsonArray."givenname"
+#	UTF8 -> Win-1252
+	$GOSTgivenname	= [System.Text.Encoding]::Default.GetBytes($GOSTgivenname)
+	$GOSTgivenname	= [System.Text.Encoding]::UTF8.GetString($GOSTgivenname)
+
+
 #	дата окончания сертификата
 	$result 	= $jsonArray."to"
 
@@ -182,7 +191,7 @@ try
 	</result>`n"
 #
 	$xml+="
-	<text>ФСРАР ID: $FSRAR_ID / ГОСТ до: " + $GOSTdate.ToString("dd.MM.yyyy") + " ($GOSTdays дней) ($GOSTsurname)</text>`n"
+	<text>ФСРАР ID: $FSRAR_ID / ГОСТ до: " + $GOSTdate.ToString("dd.MM.yyyy") + " ($GOSTdays дней) ($GOSTsurname $GOSTgivenname)</text>`n"
 	}
 
 }
