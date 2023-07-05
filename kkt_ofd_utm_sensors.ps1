@@ -101,18 +101,32 @@ try
 	$jsonArray 	= ConvertFrom-Json20 $build_info
 	$result 	= $jsonArray."ip_$kkt_ip"
 
-	#Write-Host      $result
+	Write-Host      $result
+
+	[int]$out_day = 0
 
 	if (!$result) {
 	    $out_day = $ofd_day
 	}else{
+#	--- week
+	    if ($result.contains('w')){
+	        $out_day+= [int]($result.split('w')[0])*7
+		$result = $result.split('w')[1]
+	    }
+#	--- days
 	    if ($result.contains('d')){
-	        $out_day = ($ofd_day-1)-$result.split('d')[0]
-	    }else{
+	        $out_day+= $result.split('d')[0]
+		$result = $result.split('d')[1]
+	    }
+#	--- zero days
+	    if ($out_day -eq 0){
 	        $out_day = ($ofd_day-1)
+	    }else{
+		$out_day = ($ofd_day-1)-$out_day
 	    }
 	}
-	#$out_day		= "5"
+#	Write-Host      $out_day
+#	$out_day		= "5"
 
 	$xml+="
 	<result>
