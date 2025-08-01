@@ -7,6 +7,15 @@
 #      В случае если хотя бы один из массивов не находится в состоянии Optimal, скрипт помечает соответствующий канал (через <Limit...>)
 #      и выводит текст с указанием проблемных массивов.
 #
+#      Инструкция добавления сенсора:
+#       - Перейди в Devices -> выбери конкретное устройство (например, esxi01, nas1, или другое с IP).
+#       - Открой его.
+#       - В меню "Sensors" нажми Add Sensor.
+#       - Выберите "EXE/Script Advanced"
+#       - EXE/Script выберите "esxi_raid_status.ps1"
+#       - Environment - включите Set placeholders as environment values
+#       - Paramiters укажите (через пробел) если необходимо: -esxiHost <ESXi_IP> (и/или) -sshpwd <Пароль>
+
 # - Установленные в той же папке утилиты:
 #   - plink.exe (из пакета PuTTY)
 #   - pscp.exe  (из пакета PuTTY)
@@ -27,11 +36,7 @@
 # - Подтвердите SSH fingerprint вручную перед использованием:
 #   - Запустите от имени SYSTEM:
 #
-#       start psexec -i -s cmd.exe
-#
-#   - Перейдите в папку со скриптом:
-#
-#       cd "C:\Program Files (x86)\PRTG Network Monitor\Custom Sensors\EXEXML"
+#       start psexec -i -s cmd.exe /k cd "C:\Program Files (x86)\PRTG Network Monitor\Custom Sensors\EXEXML"
 #
 #   - Подтвердите fingerprint:
 #
@@ -39,11 +44,31 @@
 #
 # - Параметры для PRTG:
 #
-#   -esxiHost <ESXi_IP>
+#   [-esxiHost <ESXi_IP>] - необязательный, если не указывает берет IP адрес устройства prtg_host
+#			    !!! Обязательный параметер для включения - Environment -> Set placeholders as environment values
+#   [-sshpwd <Пароль root>] - необязательный, если используется ключ
 
 param(
-    [string]$esxiHost
+    [string]$esxiHost,
+    [string]$sshpwd
 )
+
+# Если параметр $esxiHost не указан - пытаемся взять из переменной окружения
+if (-not $esxiHost -or $esxiHost -eq "") {
+    if ($env:prtg_host -and $env:prtg_host -ne "") {
+        $esxiHost = $env:prtg_host
+    } else {
+        $errorXml = @"
+<?xml version="1.0" encoding="CP866"?>
+<prtg>
+  <error>1</error>
+  <text>Не указан адрес ESXi</text>
+</prtg>
+"@
+        Write-Output $errorXml
+        exit 1
+    }
+}
 
 # Константы
 $username = "root"
@@ -57,8 +82,14 @@ $localFile = Join-Path $scriptDir "storcli_output.txt"
 
 # Выполнить storcli на ESXi и записать в файл
 $remoteCommand = "storcli /c0 /vall show > $remoteFile"
+
+if ($sshpwd) {
+& $plink -ssh -batch -pw $sshpwd -i $privateKey "$username`@$esxiHost" $remoteCommand | Out-Null
+& $pscp -batch -pw $sshpwd -i $privateKey "$username`@$esxiHost`:$remoteFile" "$localFile" | Out-Null
+} else {
 & $plink -ssh -batch -i $privateKey "$username`@$esxiHost" $remoteCommand | Out-Null
 & $pscp -batch -i $privateKey "$username`@$esxiHost`:$remoteFile" "$localFile" | Out-Null
+}
 
 # Проверка существования
 if (-Not (Test-Path $localFile)) {
